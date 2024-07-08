@@ -1,4 +1,8 @@
 #include <queue>
+#include <string>
+
+#include <fstream>
+
 
 
 class Crawler
@@ -9,11 +13,15 @@ public:
     int main();
 
 private:
-    std::queue<int> url_queue;
+    std::queue<std::string> url_queue;
 };
 
 Crawler::Crawler()
 {
+    // TODO put this link to config file
+    std::string url = "https://harrypotter.fandom.com/wiki/Main_Page";
+    this->url_queue.push(url);
+    
 }
 
 Crawler::~Crawler()
