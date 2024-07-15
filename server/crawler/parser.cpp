@@ -11,6 +11,7 @@ class Parser
 public:
     Parser(std::queue<std::string>* url_queue);
     ~Parser();
+	void cut_link(std::string* str);
     void extract_urls(std::string str); //TODO pass a pointer of the string
 private:
     std::queue<std::string>* m_url_queue;
@@ -28,12 +29,18 @@ Parser::~Parser()
 {
 }
 
+//func for cut off the sub string "<a href="  
+void Parser::cut_link(std::string* str)
+{
+    std::string sub = str->substr(9);
+	*str = sub;
+}
 
 void Parser::extract_urls(std::string str)
 {
 
 	// Regular Expression to extract URLs from the string
-	std::string regex_str = "href=\"((?:https?|ftp|file):"
+	std::string regex_str = "<a href=\"((?:https?|ftp|file):"
 					"\\/\\/[a-zA-Z0-9+&@#\\/%?=~_|!:,.;]*"
 					"[a-zA-Z0-9+&@#\\/%=~_|])";
 
@@ -46,7 +53,9 @@ void Parser::extract_urls(std::string str)
 
 	// find and store all the URLs in the queue
 	while (m != m_end) {
-		this->m_url_queue->push(m->str());
+		std::string link = m->str();
+		this->cut_link(&link); //cut the sub string "<a href=" from the link
+		this->m_url_queue->push(link);
 		m++;
 	}
 
