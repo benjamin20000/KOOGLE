@@ -11,10 +11,11 @@ class Parser
 public:
     Parser(std::queue<std::string>* url_queue);
     ~Parser();
-	void cut_link(std::string* str);
     void extract_urls(std::string str); //TODO pass a pointer of the string
 private:
     std::queue<std::string>* m_url_queue;
+	void cut_link(std::string* str);
+
 
 };
 
@@ -32,7 +33,8 @@ Parser::~Parser()
 //func for cut off the sub string "<a href="  
 void Parser::cut_link(std::string* str)
 {
-    std::string sub = str->substr(9);
+	int index = str->find("=");
+    std::string sub = str->substr(index+2);
 	*str = sub;
 }
 
@@ -58,6 +60,5 @@ void Parser::extract_urls(std::string str)
 		this->m_url_queue->push(link);
 		m++;
 	}
-
 }
 #endif
