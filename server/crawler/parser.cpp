@@ -1,24 +1,4 @@
-#include <iostream>
-#include <regex>
-#include<queue>
-
-#ifndef Parser_cpp
-#define Parser_cpp
-
-
-class Parser
-{
-public:
-    Parser(std::queue<std::string>* url_queue);
-    ~Parser();
-    void extract_urls(std::string* str); 
-private:
-    std::queue<std::string>* m_url_queue;
-	void cut_link(std::string* str);
-	// void extract_words(std::string str);
-
-
-};
+#include "parser.h"
 
 
 Parser::Parser(std::queue<std::string>* url_queue)
@@ -30,6 +10,29 @@ Parser::Parser(std::queue<std::string>* url_queue)
 Parser::~Parser()
 {
 }
+
+//gumbo func for filter the text from the html
+std::string Parser::cleantext(GumboNode* node) {
+  if (node->type == GUMBO_NODE_TEXT) {
+    return std::string(node->v.text.text);
+  } else if (node->type == GUMBO_NODE_ELEMENT &&
+             node->v.element.tag != GUMBO_TAG_SCRIPT &&
+             node->v.element.tag != GUMBO_TAG_STYLE) {
+    std::string contents = "";
+    GumboVector* children = &node->v.element.children;
+    for (unsigned int i = 0; i < children->length; ++i) {
+      const std::string text = cleantext((GumboNode*) children->data[i]);
+      if (i != 0 && !text.empty()) {
+        contents.append(" ");
+      }
+      contents.append(text);
+    }
+    return contents;
+  } else {
+    return "";
+  }
+}
+
 
 //func for cut off the sub string "<a href="  
 void Parser::cut_link(std::string* str)
@@ -62,4 +65,20 @@ void Parser::extract_urls(std::string* str)
 		m++;
 	}
 }
-#endif
+
+void Parser::extract_words(std::string html)
+{
+	// // html = "aba aba" ;
+	// std::regex r(R"([^\W_]+(?:['_-][^\W_]+)*)");
+	// for(std::sregex_iterator i = std::sregex_iterator(html.begin(), html.end(), r);
+    //                      i != std::sregex_iterator();
+    //                      ++i)
+// {
+//     std::smatch m = *i;
+//     std::cout << m.str() << '\n';
+// }
+    std::cout << html << '\n';
+
+
+}
+
