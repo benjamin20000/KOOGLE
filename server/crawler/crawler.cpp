@@ -6,6 +6,10 @@
 #include <curlpp/Exception.hpp>
 #include <curlpp/Infos.hpp>
 #include "parser.cpp"
+#include <sstream> 
+
+
+
 
 #ifndef Crawler_cpp
 #define Crawler_cpp
@@ -67,8 +71,14 @@ void Crawler::Crawling(){
     std::string url = this->m_url_queue.front();
     this->m_url_queue.pop();
     std::string html = get_html(url);
-    if(html != "")
-    parser.extract_urls(html);
+    // if(html != "")
+    GumboOutput* output = gumbo_parse(html.c_str());
+    // std::string str = cleantext(output->root);
+    // std::cout << str;
+    // parser.extract_urls(&html);
+    // parser.extract_words(html);
+
+
     
     // while (!m_url_queue.empty())
     // {
@@ -80,16 +90,18 @@ void Crawler::Crawling(){
 
 #endif
 
+
 int main(){
     int m = 0;
     Crawler crawler;
     crawler.Crawling();
     std::cout << crawler.m_url_queue.size();
-    while(m<30){
+    while(!crawler.m_url_queue.empty()){
         m++;
-        std::cout << crawler.m_url_queue.front()<<'\n';
+        std::cout << m << " "<< crawler.m_url_queue.front()<<'\n';
         crawler.m_url_queue.pop();
     }
     
     return 0;
 }
+
