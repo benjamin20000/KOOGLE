@@ -15,6 +15,8 @@ public:
     ~Parser();
     void extract_urls(std::string* str); 
 	void extract_words(std::string str); //TODO pass pointer insted value
+    void search_for_links(GumboNode* node); //gumbo func for extract the links from the html
+
 
 private:
     std::queue<std::string>* m_url_queue;

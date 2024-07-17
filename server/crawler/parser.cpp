@@ -11,7 +11,7 @@ Parser::~Parser()
 {
 }
 
-//gumbo func for filter the text from the html
+//gumbo func for filtering the text from the html
 std::string Parser::cleantext(GumboNode* node) {
   if (node->type == GUMBO_NODE_TEXT) {
     return std::string(node->v.text.text);
@@ -31,6 +31,24 @@ std::string Parser::cleantext(GumboNode* node) {
   } else {
     return "";
   }
+}
+
+
+//gumbo func for extract the links from html
+void Parser::search_for_links(GumboNode* node) {
+	if (node->type != GUMBO_NODE_ELEMENT){
+    	return;
+  	}
+  	GumboAttribute* href;
+  	if (node->v.element.tag == GUMBO_TAG_A &&
+    	(href = gumbo_get_attribute(&node->v.element.attributes, "href")))
+	{
+   		this->m_url_queue->push(href->value); //TODO make sure its return only working urls
+  	}
+  	GumboVector* children = &node->v.element.children;
+  	for (unsigned int i = 0; i < children->length; ++i){
+    	search_for_links(static_cast<GumboNode*>(children->data[i]));
+  	}
 }
 
 
