@@ -1,0 +1,14 @@
+html, body, #root {
+    height: 100%;
+    margin: 0;  
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .center-container {
+    height: 50%;
+    width: 100%;
+    text-align: center;
+  }
+  
