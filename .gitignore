@@ -1,0 +1,5 @@
+
+*.o
+.vscode/
+mongo-cxx-driver-r3.10.1/
+curlpp-0.8.1/
