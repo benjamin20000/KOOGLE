@@ -1,4 +1,7 @@
 #include "mongo_db.hpp"
+#include <nlohmann/json.hpp>
+#include <fstream>   
+
 
 void MongoDB::init_driver() {
     static mongocxx::instance inst{}; // Ensure this is initialized only once
@@ -6,8 +9,31 @@ void MongoDB::init_driver() {
 
 MongoDB::MongoDB() {
     init_driver();
-    db_name = "KOOGLE_DB"; // TODO: take it from a config file
-    collection_name = "Words_db"; // TODO: change to reference
+
+    // Check the status of the MongoDB service
+    std::cout << "Checking MongoDB service status..." << std::endl;
+    int status_result = std::system("sudo systemctl status mongod > /dev/null 2>&1");
+
+    if (status_result != 0) {
+        std::cout << "MongoDB service is not running. Attempting to start it..." << std::endl;
+        int start_result = std::system("sudo systemctl start mongod");
+
+        if (start_result != 0) {
+            throw std::runtime_error("Failed to start MongoDB service.");
+        } else {
+            std::cout << "MongoDB service started successfully." << std::endl;
+        }
+    } else {
+        std::cout << "MongoDB service is running." << std::endl;
+    }
+    //take the database and collectoin names from a config file
+
+    std::ifstream config_file("config.json");
+    nlohmann::json config;
+    config_file >> config;
+
+    db_name = config["database_name"];
+    collection_name =  config["collection_name"];
 
     this->client = mongocxx::client{mongocxx::uri{}};
     this->db = client[db_name];
