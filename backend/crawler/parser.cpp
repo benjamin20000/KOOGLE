@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <sstream> 
+#include <regex>
 
 Parser::Parser(std::queue<std::string>* url_queue)
 {
@@ -58,7 +59,17 @@ void Parser::search_for_links(GumboNode* node) {
   	if (node->v.element.tag == GUMBO_TAG_A &&
     	(href = gumbo_get_attribute(&node->v.element.attributes, "href")))
 	{
-   		this->m_url_queue->push(href->value); //TODO make sure its return only working urls
+		// make sure its url work and insert hime to the queue 
+		const std::regex pattern("((http|https)://)(www.)?[a-zA-Z0-9@:%._\\+~#?&//=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%._\\+~#?&//=]*)");
+		if(std::regex_match(href->value, pattern)){
+			std::cout<<"working: "<<href->value<<"\n";
+			this->m_url_queue->push(href->value); 
+		}
+		else{
+			std::cout<<"not working: "<<href->value<<"\n";
+		}
+		
+   		
   	}
   	GumboVector* children = &node->v.element.children;
   	for (unsigned int i = 0; i < children->length; ++i){
