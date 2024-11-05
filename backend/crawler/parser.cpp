@@ -62,14 +62,8 @@ void Parser::search_for_links(GumboNode* node) {
 		// make sure its url work and insert hime to the queue 
 		const std::regex pattern("((http|https)://)(www.)?[a-zA-Z0-9@:%._\\+~#?&//=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%._\\+~#?&//=]*)");
 		if(std::regex_match(href->value, pattern)){
-			std::cout<<"working: "<<href->value<<"\n";
 			this->m_url_queue->push(href->value); 
-		}
-		else{
-			std::cout<<"not working: "<<href->value<<"\n";
-		}
-		
-   		
+		}   		
   	}
   	GumboVector* children = &node->v.element.children;
   	for (unsigned int i = 0; i < children->length; ++i){
@@ -82,7 +76,6 @@ std::map<std::string, int>  Parser::count_words(std::string str) {
 	std::map<std::string,int> words_dic; //declare a dic for words
 	std::stringstream ss(str); 
     std::string word;
-
     // access each word of the string 
     // and enter it to dic
     while (ss >> word) { 

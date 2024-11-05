@@ -1,11 +1,15 @@
 #include "mongo_db.hpp"
 #include <nlohmann/json.hpp>
-#include <fstream>   
+#include <fstream>  
+#include <mongocxx/exception/exception.hpp>
+
+
 
 
 void MongoDB::init_driver() {
-    static mongocxx::instance inst{}; // Ensure this is initialized only once
+    static mongocxx::instance inst{}; // This should be done only once
 }
+
 
 MongoDB::MongoDB() {
     init_driver();
@@ -23,21 +27,142 @@ MongoDB::MongoDB() {
         } else {
             std::cout << "MongoDB service started successfully." << std::endl;
         }
-    } else {
-        std::cout << "MongoDB service is running." << std::endl;
     }
-    //take the database and collectoin names from a config file
 
+    //connect to a config file
     std::ifstream config_file("config.json");
     nlohmann::json config;
     config_file >> config;
 
-    db_name = config["database_name"];
-    collection_name =  config["collection_name"];
+    db_name = config["database_name"];  //take the databas name from the config file
+    collection_words_name =  config["collection_words_name"]; //take the collection_words name from the config file
+    visited_urls_name =  config["visited_urls_name"]; //take the  collection visited_urls name from the config file
+    unvisited_urls_queue_name =  config["unvisited_urls_queue_name"];
 
-    this->client = mongocxx::client{mongocxx::uri{}};
-    this->db = client[db_name];
-    this->collection = db[collection_name];
+    this->client = mongocxx::client{mongocxx::uri{}}; //connect to database by uri(defult:27017)
+    this->db = client[db_name]; //access a database by its name
+    this->words_collection = db[collection_words_name]; //access to the words collection 
+    this->visited_urls_collection = db[visited_urls_name]; //access to the visited_urls collection
+    this->urls_queue_collection = db[unvisited_urls_queue_name]; //access to the visited_urls collection  
+}
+
+
+void MongoDB::put_visited_urls(std::set<std::string> & urls) {
+     for (const auto& url : urls) {
+        try {
+            // Check if the URL already exists in the collection
+            bsoncxx::builder::stream::document filter{};
+            filter << "url" << url;
+
+            auto cursor = this->visited_urls_collection.find(filter.view());
+
+            if (cursor.begin() != cursor.end()) {
+                std::cout << "URL already exists in visited: " << url << std::endl;
+                continue; // Skip inserting the URL if it already exists
+            }
+            
+
+            // Get the current time using std::chrono
+            auto now = std::chrono::system_clock::now();
+            bsoncxx::types::b_date bson_date{std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())};
+
+            // Create a new BSON document to insert
+            bsoncxx::builder::stream::document document{};
+            document << "url" << url
+                     << "timestamp" << bson_date;
+
+            // Insert the document into the collection
+            this->visited_urls_collection.insert_one(document.view());
+
+        } catch (const mongocxx::exception& e) { 
+            std::cerr << "Error inserting URL: " << e.what() << std::endl;
+        } catch (const std::exception& e) { 
+            std::cerr << "General error: " << e.what() << std::endl;
+        }
+    }
+}
+
+
+void MongoDB::put_queue_urls(std::queue<std::string>& queue) {
+    while (!queue.empty()) {
+        auto& url = queue.front();
+
+        try {
+            // Check if the URL already exists in the collection
+            bsoncxx::builder::stream::document filter{};
+            filter << "url" << url;
+
+            auto cursor = this->urls_queue_collection.find(filter.view());
+
+            if (cursor.begin() != cursor.end()) {
+                std::cout << "URL already in queue: " << url << std::endl;
+                queue.pop(); // Ensure the URL is removed from the queue
+                continue; // Skip inserting the URL if it already exists
+            }
+
+            // Create a new BSON document to insert
+            bsoncxx::builder::stream::document document{};
+            document << "url" << url;
+
+            // Insert the document into the collection
+            this->urls_queue_collection.insert_one(document.view());
+
+        } catch (const mongocxx::exception& e) {
+            std::cerr << "Error inserting URL: " << e.what() << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "General error: " << e.what() << std::endl;
+        }
+
+        queue.pop(); // Remove URL after processing
+    }
+}
+
+
+
+std::set<std::string> MongoDB::get_visited_urls() {
+    std::set<std::string> visited_urls; // Set to store unique URLs
+
+    try {
+        auto cursor = this->visited_urls_collection.find({}); // Fetch all documents from the collection
+
+        for (const auto& doc : cursor) {
+            // Directly access the URL and convert it to std::string
+            visited_urls.insert(doc["url"].get_string().value.to_string()); // Extract URL and insert into the set
+        }
+
+    } catch (const mongocxx::exception& e) {
+        std::cerr << "Error retrieving URLs: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "General error: " << e.what() << std::endl;
+    }
+
+    return visited_urls; // Return the set of visited URLs
+}
+
+
+
+std::queue<std::string> MongoDB::get_unvisited_queue(int& urls_needed) {
+    std::queue<std::string> queue_urls; // Set queue to store unvisited URLs
+
+    try {
+        auto cursor = this->urls_queue_collection.find({}); // Fetch all documents from the collection
+        int url_count = 0;
+        for (const auto& doc : cursor) {
+            if(url_count == urls_needed){
+                 break; 
+            }
+            url_count++;
+            // Directly access the URL and convert it to std::string
+            queue_urls.push(doc["url"].get_string().value.to_string()); // Extract URL and insert into the queue
+        }
+
+    } catch (const mongocxx::exception& e) {
+        std::cerr << "Error retrieving URLs: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "General error: " << e.what() << std::endl;
+    }
+
+    return queue_urls; // Return the set of visited URLs
 }
 
 
@@ -58,17 +183,12 @@ void MongoDB::insert_word(const std::string& url, const std::string& word, int c
         << bsoncxx::builder::stream::finalize;
 
     // Perform the update operation with upsert option
-    collection.update_one(
+    words_collection.update_one(
         filter.view(),
         update.view(),
         mongocxx::options::update{}.upsert(true)
     );
 }
-
-
-
-
-
 
 
 //this func get arguments of url and dictionary like this: {word:3,animal:43,...} 
@@ -79,41 +199,3 @@ void MongoDB::insert_data(const std::string& url, const std::map<std::string, in
     }
   
 }
-
-// //find the word in the db and return dictionary
-// std::map<std::string, int> MongoDB::get_urls(const std::string word) {
-//     std::map<std::string, int> url_count_map;
-
-//     // Build the query to find the document by word
-//     auto query = bsoncxx::builder::stream::document{} << "word" << word << bsoncxx::builder::stream::finalize;
-
-//     // Find the document in the collection
-//     auto maybe_result = collection.find_one(query.view());
-
-//     // Check if the document was found
-//     if (maybe_result) {
-//         auto doc = maybe_result->view();
-
-//         // Check if the document has the 'occurrences' field and it's an array
-//         if (doc["occurrences"] && doc["occurrences"].type() == bsoncxx::type::k_array) {
-//             auto occurrences = doc["occurrences"].get_array().value;
-
-//             // Iterate over the array of occurrences
-//             for (auto&& occurrence : occurrences) {
-//                 if (occurrence["url"] && occurrence["url"].type() == bsoncxx::type::k_utf8 &&
-//                     occurrence["count"] && occurrence["count"].type() == bsoncxx::type::k_int32) {
-                    
-//                     // Extract the URL and count
-//                     std::string url = occurrence["url"].get_string().value.to_string();
-//                     int count = occurrence["count"].get_int32().value;
-
-//                     // Insert them into the map
-//                     url_count_map[url] = count;
-//                 }
-//             }
-//         }
-//     }
-
-//     return url_count_map;
-// }
-
